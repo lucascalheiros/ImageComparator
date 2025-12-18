@@ -1,27 +1,41 @@
-import React, {useRef, useState} from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ImageWindow from "./image-window";
+import {loadWindows, saveWindows} from "~/db/db";
 
 type ImageWindowState = {
   id: string;
   x: number;
   y: number;
   z: number;
-  imageUrl: string;
+  imageUrl: string;   // runtime only
   imageName: string;
+  blob: Blob;         // persisted
 };
 
 export default function DragArea() {
   const [windows, setWindows] = useState<ImageWindowState[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const offset = useRef({x: 0, y: 0});
+  const offset = useRef({ x: 0, y: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    console.log("No param useeffect")
+    loadWindows().then(items => {
+      setWindows(
+        items.map(w => ({
+          ...w,
+          imageUrl: URL.createObjectURL(w.blob),
+        }))
+      );
+    });
+  }, []);
 
   const openPicker = () => {
     inputRef.current?.click();
   };
 
   const bringToFront = (id: string) => {
-    const maxZ = Math.max(...windows.map(w => w.z));
+    const maxZ = Math.max(...windows.map(w => w.z), 0);
 
     setWindows(prev =>
       prev.map(w =>
@@ -30,68 +44,74 @@ export default function DragArea() {
     );
   };
 
-  // -------- START DRAG --------
-  const onStartDrag = (
-    id: string,
-    e: React.MouseEvent
-  ) => {
-    setDraggingId(id);
-
+  const onStartDrag = (id: string, e: React.MouseEvent) => {
     const win = windows.find(w => w.id === id);
     if (!win) return;
 
+    setDraggingId(id);
     offset.current = {
       x: e.clientX - win.x,
       y: e.clientY - win.y,
     };
   };
 
-  // -------- MOVE --------
   const onMouseMove = (e: React.MouseEvent) => {
     if (!draggingId) return;
 
     setWindows(prev =>
-      prev.map(win =>
-        win.id === draggingId
+      prev.map(w =>
+        w.id === draggingId
           ? {
-            ...win,
+            ...w,
             x: e.clientX - offset.current.x,
             y: e.clientY - offset.current.y,
           }
-          : win
+          : w
       )
     );
   };
 
-  // -------- END DRAG --------
   const onMouseUp = () => {
     setDraggingId(null);
+    const persist = windows.map(({ imageUrl, ...rest }) => rest);
+    saveWindows(persist);
   };
 
-  // -------- ADD WINDOW --------
   const addWindow = (file: File) => {
-    setWindows(prev => [
-      ...prev,
+    const newWindows = [
+      ...windows,
       {
         id: crypto.randomUUID(),
         x: 150,
         y: 150,
-        z: 1,
+        z: Math.max(...windows.map(w => w.z), 0),
         imageUrl: URL.createObjectURL(file),
         imageName: file.name,
+        blob: file,
       },
-    ]);
+    ]
+    setWindows(newWindows);
+    const persist = newWindows.map(({ imageUrl, ...rest }) => rest);
+    saveWindows(persist);
   };
 
   const removeWindow = (id: string) => {
-    setWindows(prev => prev.filter(w => w.id !== id));
+    setWindows(prev => {
+      const win = prev.find(w => w.id === id);
+      if (win) URL.revokeObjectURL(win.imageUrl);
+      const newWindows = prev.filter(w => w.id !== id);
+      const persist = newWindows.map(({ imageUrl, ...rest }) => rest);
+      saveWindows(persist);
+      return newWindows
+    });
   };
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    addWindow(file);
+    if (file && file.type.startsWith("image/")) {
+      addWindow(file);
+    }
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -106,14 +126,17 @@ export default function DragArea() {
       onDrop={onDrop}
       onDragOver={onDragOver}
     >
-      <div className="flex flex-col items-center">
-      <span className="text-black">Arraste uma imagem, ou: </span>
-      <button
-        onClick={openPicker}
-        className="px-3 py-1 bg-blue-500 text-white rounded"
-      >
-        Selecionar imagens
-      </button>
+      <div className="flex flex-col items-center gap-2 p-2">
+        <span className="text-black">
+          Arraste uma imagem, ou:
+        </span>
+
+        <button
+          onClick={openPicker}
+          className="px-3 py-1 bg-blue-500 text-white rounded"
+        >
+          Selecionar imagens
+        </button>
       </div>
 
       <input
@@ -124,12 +147,10 @@ export default function DragArea() {
         hidden
         onChange={(e) => {
           const files = e.target.files;
-          if (files) {
-            for (let i = 0; i < files.length; i++) {
-              addWindow(files[i]);
-            }
-            e.target.value = "";
-          }
+          if (!files) return;
+
+          Array.from(files).forEach(addWindow);
+          e.target.value = "";
         }}
       />
 
