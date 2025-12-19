@@ -1,6 +1,8 @@
+"use client"
 import React, { useEffect, useRef, useState } from "react";
 import ImageWindow from "./image-window";
-import {loadWindows, saveWindows} from "~/db/db";
+import { saveWindows, loadWindows } from "../db/db";
+
 
 type ImageWindowState = {
   id: string;
