@@ -16,9 +16,11 @@ function openDB(): Promise<IDBDatabase> {
 
 export type PersistedWindow = {
   id: string;
-  x: number;
-  y: number;
-  z: number;
+  left: number;
+  top: number;
+  zIndex: number;
+  height: number;
+  width: number;
   imageName: string;
   blob: Blob;
 };

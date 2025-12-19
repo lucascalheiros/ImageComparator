@@ -1,10 +1,15 @@
-"use client"
-import React, {useRef, useState} from "react";
+"use client";
+import React, { useRef, useState } from "react";
 
 type Props = {
   left: number;
   top: number;
   zIndex: number;
+
+  width: number;
+  height: number;
+  onResize: (size: { width: number; height: number }) => void;
+
   imageUrl: string;
   imageName: string;
   onStartDrag: (e: React.MouseEvent) => void;
@@ -12,23 +17,20 @@ type Props = {
   onClose: () => void;
 };
 
-export default function ImageWindow(
-  {
-    onStartDrag,
-    left,
-    top,
-    onClose,
-    onBringToFront,
-    zIndex,
-    imageUrl,
-    imageName,
-  }: Props) {
+export default function ImageWindow({
+  onStartDrag,
+  left,
+  top,
+  onClose,
+  onBringToFront,
+  zIndex,
+  imageUrl,
+  imageName,
+  width,
+  height,
+  onResize,
+}: Props) {
   const [opacity, setOpacity] = useState(1);
-
-  const [size, setSize] = useState({
-    width: 240,
-    height: 260,
-  });
 
   const resizing = useRef(false);
   const resizeStart = useRef({
@@ -45,8 +47,8 @@ export default function ImageWindow(
     resizeStart.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
-      width: size.width,
-      height: size.height,
+      width,
+      height,
     };
 
     window.addEventListener("mousemove", onResizeMove);
@@ -59,7 +61,7 @@ export default function ImageWindow(
     const dx = e.clientX - resizeStart.current.mouseX;
     const dy = e.clientY - resizeStart.current.mouseY;
 
-    setSize({
+    onResize({
       width: Math.max(180, resizeStart.current.width + dx),
       height: Math.max(200, resizeStart.current.height + dy),
     });
@@ -73,44 +75,32 @@ export default function ImageWindow(
 
   return (
     <div
-      className="
-        absolute
-        rounded-lg
-        shadow-lg
-        select-none
-      "
-      style={{
-        left,
-        top,
-        width: size.width,
-        height: size.height,
-        zIndex
-      }}
+      className="absolute rounded-lg shadow-lg select-none"
+      style={{ left, top, width, height, zIndex }}
     >
       <div
-        onMouseDown={event => {
-          onStartDrag(event)
-          onBringToFront()
+        onMouseDown={(event) => {
+          onStartDrag(event);
+          onBringToFront();
         }}
         className="
-    h-8 bg-blue-500 text-white px-2
-    flex flex-row items-center justify-between
-    cursor-grab active:cursor-grabbing
-    rounded-t-lg
-  "
+          h-8 bg-blue-500 text-white px-2
+          flex items-center justify-between
+          cursor-grab active:cursor-grabbing
+          rounded-t-lg
+        "
       >
         <span className="flex-1 min-w-0 truncate">{imageName}</span>
 
-        <div className="flex gap-1">
-          <button
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={onClose}
-            className="text-xs bg-red-500 px-2 rounded"
-          >
-            ✕
-          </button>
-        </div>
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={onClose}
+          className="text-xs bg-red-500 px-2 rounded"
+        >
+          ✕
+        </button>
       </div>
+
       <div
         className="p-2 bg-gray-500"
         onMouseDown={(e) => e.stopPropagation()}
@@ -122,33 +112,26 @@ export default function ImageWindow(
           max="1"
           step="0.1"
           value={opacity}
-          onChange={(e) =>
-            setOpacity(Number(e.currentTarget.value))
-          }
+          onChange={(e) => setOpacity(Number(e.currentTarget.value))}
           className="w-full"
         />
       </div>
 
       <div className="relative flex-1 p-2">
-          <img
-            src={imageUrl}
-            alt="Imagem"
-            className="w-full h-full object-cover rounded pointer-events-none"
-            style={{opacity}}
-          />
+        <img
+          src={imageUrl}
+          alt="Imagem"
+          className="w-full h-full object-cover rounded pointer-events-none"
+          style={{ opacity }}
+        />
       </div>
 
       <div
         onMouseDown={onResizeStart}
         className="
-          absolute
-          bottom-1
-          right-1
-          w-4
-          h-4
-          bg-gray-400
-          rounded
-          cursor-se-resize
+          absolute bottom-1 right-1
+          w-4 h-4 bg-gray-400
+          rounded cursor-se-resize
         "
       />
     </div>

@@ -6,9 +6,11 @@ import { saveWindows, loadWindows } from "../db/db";
 
 type ImageWindowState = {
   id: string;
-  x: number;
-  y: number;
-  z: number;
+  left: number;
+  top: number;
+  zIndex: number;
+  height: number;
+  width: number;
   imageUrl: string;   // runtime only
   imageName: string;
   blob: Blob;         // persisted
@@ -37,11 +39,11 @@ export default function DragArea() {
   };
 
   const bringToFront = (id: string) => {
-    const maxZ = Math.max(...windows.map(w => w.z), 0);
+    const maxZ = Math.max(...windows.map(w => w.zIndex), 0);
 
     setWindows(prev =>
       prev.map(w =>
-        w.id === id ? {...w, z: maxZ + 1} : w
+        w.id === id ? {...w, zIndex: maxZ + 1} : w
       )
     );
   };
@@ -52,8 +54,8 @@ export default function DragArea() {
 
     setDraggingId(id);
     offset.current = {
-      x: e.clientX - win.x,
-      y: e.clientY - win.y,
+      x: e.clientX - win.left,
+      y: e.clientY - win.top,
     };
   };
 
@@ -65,8 +67,8 @@ export default function DragArea() {
         w.id === draggingId
           ? {
             ...w,
-            x: e.clientX - offset.current.x,
-            y: e.clientY - offset.current.y,
+            left: e.clientX - offset.current.x,
+            top: e.clientY - offset.current.y,
           }
           : w
       )
@@ -84,9 +86,11 @@ export default function DragArea() {
       ...windows,
       {
         id: crypto.randomUUID(),
-        x: 150,
-        y: 150,
-        z: Math.max(...windows.map(w => w.z), 0),
+        left: 150,
+        top: 150,
+        zIndex: Math.max(...windows.map(w => w.zIndex), 0) + 1,
+        height: 400,
+        width: 300,
         imageUrl: URL.createObjectURL(file),
         imageName: file.name,
         blob: file,
@@ -119,6 +123,14 @@ export default function DragArea() {
   const onDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
+
+  const updateSize = (id: string, size: { width: number; height: number }) => {
+  setWindows((prev) =>
+    prev.map((w) =>
+      w.id === id ? { ...w, ...size } : w
+    )
+  );
+};
 
   return (
     <div
@@ -159,14 +171,11 @@ export default function DragArea() {
       {windows.map(win => (
         <ImageWindow
           key={win.id}
-          left={win.x}
-          top={win.y}
-          zIndex={win.z}
-          imageUrl={win.imageUrl}
-          imageName={win.imageName}
+          {...win}
           onStartDrag={(e) => onStartDrag(win.id, e)}
           onBringToFront={() => bringToFront(win.id)}
           onClose={() => removeWindow(win.id)}
+          onResize={(size) => updateSize(win.id, size)}
         />
       ))}
     </div>
